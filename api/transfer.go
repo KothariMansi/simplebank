@@ -2,10 +2,12 @@ package api
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 
 	db "github.com/KothariMansi/simplebank/db/sqlc"
+	"github.com/KothariMansi/simplebank/token"
 	"github.com/gin-gonic/gin"
 )
 
@@ -23,12 +25,23 @@ func (server *Server) createTransfer(ctx *gin.Context) {
 		return
 	}
 
-	if !server.validAccount(ctx, req.FromAccountId, req.Currency) {
+	fromAccount, valid := server.validAccount(ctx, req.FromAccountId, req.Currency)
+	if !valid {
 		return
 	}
-	if !server.validAccount(ctx, req.ToAccountId, req.Currency) {
+
+	authPayload := ctx.MustGet(authorizationPayloadKey).(*token.Payload)
+	if fromAccount.Owner != authPayload.Username {
+		err := errors.New("from account does not belong to the authenticated user")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(err))
 		return
 	}
+
+	_, valid = server.validAccount(ctx, req.ToAccountId, req.Currency)
+	if !valid {
+		return
+	}
+
 	arg := db.TransferTxParams{
 		FromAccountId: req.FromAccountId,
 		ToAccountId:   req.ToAccountId,
@@ -42,20 +55,20 @@ func (server *Server) createTransfer(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
-func (server *Server) validAccount(ctx *gin.Context, accountId int64, currency string) bool {
+func (server *Server) validAccount(ctx *gin.Context, accountId int64, currency string) (db.Account, bool) {
 	account, err := server.store.GetAccount(ctx, accountId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
-			return false
+			return account, false
 		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(err))
-		return false
+		return account, false
 	}
 	if account.Currency != currency {
 		err := fmt.Sprintf("Account [%d] currency mismathed: %s vs %s", accountId, account.Currency, currency)
 		ctx.JSON(http.StatusBadRequest, err)
-		return false
+		return account, false
 	}
-	return true
+	return account, true
 }

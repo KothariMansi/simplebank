@@ -47,7 +47,7 @@ func EqCreateUserParams(arg db.CreateUserParams, password string) gomock.Matcher
 }
 
 func TestCreateUserApi(t *testing.T) {
-	user, password := randomUser()
+	user, password := randomUser(t)
 	hashedPassword, err := util.HashPassword(password)
 
 	require.NoError(t, err)
@@ -110,7 +110,7 @@ func TestCreateUserApi(t *testing.T) {
 	}
 }
 
-func randomUser() (db.User, string) {
+func randomUser(t *testing.T) (db.User, string) {
 	password := util.RandomString(10)
 	hashedPasswod, err := util.HashPassword(password)
 	if err != nil {
