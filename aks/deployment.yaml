@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: simple-bank-api
-        image: simplebank.azurecr.io/simplebank:72a14ad2f492bf185fa3b27922d0200dbd980a24
+        image: simplebank.azurecr.io/simplebank:49c87febd84832862d4b5fa974f92618d1779e2c
         ports:
         - containerPort: 8080
